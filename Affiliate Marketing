@@ -1,0 +1,48 @@
+import findspark
+findspark.init()
+import pyspark
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.getOrCreate()
+from pyspark.sql.functions import *
+
+import pandas as pd
+data = pd.read_csv("Social_Network_Ads.csv")
+df =spark.createDataFrame(data)
+df.show()
+
+dff = df.drop("Gender","Purchased")
+dff.show(10)
+
+from pyspark.ml.feature import VectorAssembler
+input_columns = dff.columns # Collect the column names as a list
+input_columns = input_columns[1:] # keep only relevant columns: from column 8 until the end
+vecAssembler = VectorAssembler(inputCols=input_columns, outputCol="features")
+df_kmeans = vecAssembler.transform(dff) #.select('CUST_ID', 'features')
+df_kmeans.show(10)
+
+from pyspark.ml.clustering import KMeans
+from pyspark.ml.evaluation import ClusteringEvaluator
+k = 2
+kmeans = KMeans(predictionCol="prediction").setK(k).setSeed(1).setFeaturesCol("features")
+model = kmeans.fit(df_kmeans)
+
+# Shows the cluster centers
+centers = model.clusterCenters()
+print("Cluster Centers: ")
+for center in centers:
+    print(center)
+    
+predictions = model.transform(df_kmeans)#cluster given data
+predictions.groupBy("prediction").count().orderBy("prediction").show()#count members in each cluster
+predictions.select('User ID', 'prediction').show(10)
+
+evaluator = ClusteringEvaluator()
+silhouette = evaluator.evaluate(predictions)
+print("Silhouette with squared euclidean distance = " + str(silhouette))
+
+import matplotlib.pyplot as plt
+# individual attribute box plot 
+plt.scatter(k,silhouette) 
+plt.xlabel("K Value") 
+plt.ylabel("Silhouette Score") 
+plt.show() 
