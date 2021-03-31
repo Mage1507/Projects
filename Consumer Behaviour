@@ -16,14 +16,13 @@ class TweetMiner(object):
  data = []
  api = False
  twitter_keys = {
- 'consumer_key':"thpSnUvIbUBxjPhth3zLGgWjH",
+ 'consumer_key':"",
  
-'consumer_secret':"fTjgRDgWI0aDxm7Y2hlj4K40QJk3p8yf19xAfSRRdTB2Podp0c",
- 'access_token_key':"1302621350935187457-
-9BiRRnVrTMZNKiA3v1fvH9WWfoGSTd",
+'consumer_secret':"",
+ 'access_token_key':"",
  
-'access_token_secret':"MIm4WvevuqgYqsGorsRr3vvcsvrqQZbDSAAV5K3Q0epln"
- }36
+'access_token_secret':""
+ }
  def __init__(self, keys_dict=twitter_keys, api=api, result_limit = 20): 
  self.twitter_keys = keys_dict
  
@@ -56,7 +55,7 @@ count=self.result_limit, tweet_mode = 'extended', include_retweets=True)
  except:
  continue
  last_tweet_id = item.id
- data.append(mined)37
+ data.append(mined)
  page += 1
  return data
 miner=TweetMiner(result_limit = 200 )
@@ -162,10 +161,12 @@ centers = model.clusterCenters()
 print("Cluster Centers: ")
 for center in centers:
  print(center)
+ 
 #prediction
 predictions = model.transform(dataset)
 predictions.groupBy("prediction").count().orderBy("prediction").show()
 predictions.select('words', 'prediction').show(10)
+
 #silhouette score calculation
 evaluator = ClusteringEvaluator()
 silhouette = evaluator.evaluate(predictions)
