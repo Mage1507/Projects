@@ -1,0 +1,184 @@
+#Initiating Pyspark
+import findspark
+findspark.init()
+import pyspark
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.getOrCreate()
+from pyspark.sql.functions import *
+
+#Data Collection using Twitter Stream API
+import tweepy
+import datetime
+import pandas as pd
+import time
+class TweetMiner(object):
+ result_limit = 20 
+ data = []
+ api = False
+ twitter_keys = {
+ 'consumer_key':"thpSnUvIbUBxjPhth3zLGgWjH",
+ 
+'consumer_secret':"fTjgRDgWI0aDxm7Y2hlj4K40QJk3p8yf19xAfSRRdTB2Podp0c",
+ 'access_token_key':"1302621350935187457-
+9BiRRnVrTMZNKiA3v1fvH9WWfoGSTd",
+ 
+'access_token_secret':"MIm4WvevuqgYqsGorsRr3vvcsvrqQZbDSAAV5K3Q0epln"
+ }36
+ def __init__(self, keys_dict=twitter_keys, api=api, result_limit = 20): 
+ self.twitter_keys = keys_dict
+ 
+auth = tweepy.OAuthHandler(keys_dict['consumer_key'], 
+keys_dict['consumer_secret'])
+ auth.set_access_token(keys_dict['access_token_key'], 
+keys_dict['access_token_secret'])
+ self.api = tweepy.API(auth)
+ self.twitter_keys = keys_dict
+ self.result_limit = result_limit 
+ def mine_user_tweets(self, user, mine_rewteets=False, max_pages=5):
+ data = []
+ last_tweet_id = False
+ page = 1
+ while page <= max_pages:
+ if last_tweet_id:
+ statuses = self.api.user_timeline(screen_name=user, 
+count=self.result_limit, max_id=last_tweet_id - 1, tweet_mode = 'extended', 
+include_retweets=True ) 
+ else:
+ statuses = self.api.user_timeline(screen_name=user, 
+count=self.result_limit, tweet_mode = 'extended', include_retweets=True)
+ 
+ for item in statuses:
+ mined = {
+ 'text':item.full_text
+ }
+ try:
+ mined['retweet_text'] = item.retweeted_status.full_text
+ except:
+ continue
+ last_tweet_id = item.id
+ data.append(mined)37
+ page += 1
+ return data
+miner=TweetMiner(result_limit = 200 )
+mined_tweets = miner.mine_user_tweets(user='amazonIN',max_pages=17)
+df= spark.createDataFrame(mined_tweets)
+df.show()
+
+#Preprocessing of Data
+from bs4 import BeautifulSoup
+import re
+from nltk.tokenize import WordPunctTokenizer
+tok = WordPunctTokenizer()
+pat1 = r'@[A-Za-z0-9]+'
+pat2 = r'https?://[A-Za-z0-9./]+'
+combined_pat = r'|'.join((pat1, pat2))
+def tweet_cleaner(text):
+ soup = BeautifulSoup(text, 'lxml')
+ souped = soup.get_text()
+ stripped = re.sub(combined_pat, '', souped)
+ 
+ try:
+ clean = stripped.decode("utf-8-sig").replace(u"\ufffd", "?")
+ except:
+ clean = stripped
+ letters_only = re.sub("[^a-zA-Z]", " ", clean)
+ lower_case = letters_only.lower()
+ words = tok.tokenize(lower_case)
+ return (" ".join(words)).strip()
+testing = df.select(collect_list('retweet_text')).first()[0]
+test_result = []
+for t in testing:
+ test_result.append(tweet_cleaner(t))
+test_result
+nums = [0,146]
+%%time
+print("Cleaning and parsing the tweets...\n")
+clean_tweet_texts = []
+for i in range(nums[0],nums[1]):
+ if( (i+1)%10 == 0 ):
+ print ("Tweets %d of %d has been processed" % ( i+1, nums[1] )) 
+ clean_tweet_texts.append(tweet_cleaner(test_result[i]))
+len(clean_tweet_texts)
+emoticons_str = r"""
+ (?:
+ [:=;] # Eyes
+ [oO\-]? # Nose (optional)
+ [D\)\]\(\]/\\OpP] # Mouth
+ )"""
+regex_str = [
+ emoticons_str,
+ 
+ r'<[^>]+>', # HTML tags
+ r'(?:@[\w_]+)', # @-mentions
+ r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)", # hash-tags
+ r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+', # 
+URLs
+ r'(?:(?:\d+,?)+(?:\.?\d+)?)', # numbers
+ r"(?:[a-z][a-z'\-_]+[a-z])", # words with - and '
+ r'(?:[\w_]+)', # other words
+ r'(?:\S)' # anything else
+]
+tokens_re = re.compile(r'('+'|'.join(regex_str)+')', re.VERBOSE | 
+re.IGNORECASE)
+emoticon_re = re.compile(r'^'+emoticons_str+'$', re.VERBOSE | 
+re.IGNORECASE)
+
+# converting preprocessed data into tokenized for
+def tokenise(s):
+ return tokens_re.findall(s)
+def preprocess(s, lowercase=False):
+ tokens = tokenise(s)
+ if lowercase:
+ tokens = [token if emoticon_re.search(token) else token.lower() for token in 
+tokens]
+ return tokens
+tokenised = []
+for tw in clean_tweet_texts:
+ tokens = preprocess(tw)
+ tokenised.append(tokens)
+print(tokenised[0:20])
+
+#converting into dataframe
+from pyspark.sql import Row
+R = Row('ID', 'words')
+cleaned_df = spark.createDataFrame([R(i, x) for i, x in enumerate(tokenised)])
+cleaned_df.show()
+
+#Word2vec
+from pyspark.ml.feature import Word2Vec
+word2vec = Word2Vec(vectorSize = 100, minCount = 5, inputCol = 'words', 
+outputCol = 'features')
+model = word2vec.fit(cleaned_df)
+result = model.transform(cleaned_df)
+result.show()
+
+#K-Means Clustering
+from pyspark.ml.clustering import KMeans
+from pyspark.ml.evaluation import ClusteringEvaluator
+dataset = result
+kmeans = KMeans(predictionCol="prediction").setK(5).setSeed(10)
+model = kmeans.fit(dataset)
+centers = model.clusterCenters()
+print("Cluster Centers: ")
+for center in centers:
+ print(center)
+#prediction
+predictions = model.transform(dataset)
+predictions.groupBy("prediction").count().orderBy("prediction").show()
+predictions.select('words', 'prediction').show(10)
+#silhouette score calculation
+evaluator = ClusteringEvaluator()
+silhouette = evaluator.evaluate(predictions)
+print("Silhouette with squared euclidean distance = " + str(silhouette))
+#Cluster Member count with respect to cluster center visualization graph
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots()
+ax.hist(centers)
+ax.set_xlabel('Cluster center')
+ax.set_ylabel('Count') 
+#Silhouette Score based on k Value
+import matplotlib.pyplot as plt
+plt.scatter(k,silhouette) 
+plt.xlabel("K Value") 
+plt.ylabel("Silhouette Score") 
+plt.show()
