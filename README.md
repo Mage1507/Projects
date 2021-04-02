@@ -20,7 +20,8 @@ The objective of the project is to analyse consumer behaviour in social network 
 
 ## SCREENSHOTS
 ### FINAL OUTPUT
-![image](https://user-images.githubusercontent.com/63550437/113383122-d9058480-93a0-11eb-8c21-5c13e1cb9f77.png)
+![image](https://user-images.githubusercontent.com/63550437/113383343-592bea00-93a1-11eb-8c35-76872b5e7db0.png)
+
 
 
 # PROJECT - 2
