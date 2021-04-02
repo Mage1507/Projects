@@ -19,8 +19,33 @@ The objective of the project is to analyse consumer behaviour in social network 
 
 
 ## SCREENSHOTS
+### FINAL OUTPUT
 1. ![image](https://user-images.githubusercontent.com/63550437/113381595-00f2e900-939d-11eb-974e-b757ce47bd60.png)
 2. ![image](https://user-images.githubusercontent.com/63550437/113381965-ed944d80-939d-11eb-875b-e5a25696321b.png)
+
+# PROJECT - 2
+## TITLE
+### [Enrichment of Affiliate Marketing Using K-Means Clustering Algorithm for Early Stage Affiliates](https://github.com/Mage1507/Projects/blob/57877ae98fcfc0d0a077d48b37a6d33f1bc4e045/Affiliate%20Marketing).
+
+
+## INTRODUCTION
+The main objective of the project is to help the early stage affiliates for their marketing to reach the right customer with the right product.
+
+
+## TECHNOLOGIES
+- **Execution Environment** - Jupyter Notebook
+- **Framework** - PySpark
+- **Data Source** - Kaggle(Consumer DataSet)
+
+
+## ALGORITHMS
+- VectorAssembler
+- K-Means Clustering
+
+
+## SCREENSHOTS
+![image](https://user-images.githubusercontent.com/63550437/113382780-fe45c300-939f-11eb-8f1c-e5d15a1f41ef.png)
+
 
 
 
